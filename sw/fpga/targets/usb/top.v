@@ -181,13 +181,13 @@ assign	usb_pipe_tx_datak		= 2'b00;
 assign	usb_phy_reset_n		= 1'b1;
 assign	usb_tx_detrx_lpbk		= 1'b0;
 assign	usb_tx_elecidle		= 1'b1;
-assign	usb_rx_elecidle		= usb_strapping ? 1'bZ : 1'b0;
+assign	usb_rx_elecidle		= usb_strapping ? 1'b0 : 1'bZ;
 assign	usb_power_down			= 2'b00;
-assign	usb_phy_status			= usb_strapping ? 1'bZ : 1'b0;
+assign	usb_phy_status			= usb_strapping ? 1'b0 : 1'bZ;
 assign	usb_tx_oneszeros		= 1'b0;
 assign	usb_tx_deemph			= 2'b10;
 assign	usb_tx_margin[2:1]	= 2'b00;
-assign	usb_tx_margin[0]		= usb_strapping ? 1'b0 : 1'b1;
+assign	usb_tx_margin[0]		= usb_strapping ? 1'b1 : 1'b0;
 assign	usb_tx_swing			= 1'b0;
 assign	usb_rx_polarity		= 1'b0;
 assign	usb_rx_termination	= 1'b0;
@@ -205,13 +205,13 @@ assign	usb0_tx_datak			= 2'b00;
 wire		usb0_phy_reset_n		= 1'b1;
 assign	usb0_tx_detrx_lpbk	= 1'b0;
 assign	usb0_tx_elecidle		= 1'b1;
-assign	usb0_rx_elecidle		= usb0_strapping ? 1'bZ : 1'b0;
+assign	usb0_rx_elecidle		= usb0_strapping ? 1'b0 : 1'bZ;
 assign	usb0_power_down		= 2'b00;
-assign	usb0_phy_status		= usb0_strapping ? 1'bZ : 1'b0;
+assign	usb0_phy_status		= usb0_strapping ? 1'b0 : 1'bZ;
 wire		usb0_tx_oneszeros		= 0;
 assign	usb0_tx_deemph			= 2'b10;
 assign	usb0_tx_margin[2:1]	= 2'b00;
-assign	usb0_tx_margin[0]		= usb0_strapping ? 1'b0 : 1'b1;
+assign	usb0_tx_margin[0]		= usb0_strapping ? 1'b1 : 1'b0;
 assign	usb0_tx_swing			= 1'b0;
 assign	usb0_rx_polarity		= 1'b0;
 assign	usb0_rx_termination	= 1'b0;
@@ -229,13 +229,13 @@ assign	usb1_tx_datak			= 2'b00;
 wire		usb1_phy_reset_n		= 1'b1;
 assign	usb1_tx_detrx_lpbk	= 1'b0;
 assign	usb1_tx_elecidle		= 1'b1;
-assign	usb1_rx_elecidle		= usb1_strapping ? 1'bZ : 1'b0;
+assign	usb1_rx_elecidle		= usb1_strapping ? 1'b0 : 1'bZ;
 assign	usb1_power_down		= 2'b00;
-assign	usb1_phy_status		= usb1_strapping ? 1'bZ : 1'b0;
+assign	usb1_phy_status		= usb1_strapping ? 1'b0 : 1'bZ;
 wire		usb1_tx_oneszeros		= 1'b0;
 assign	usb1_tx_deemph			= 2'b10;
 assign	usb1_tx_margin[2:1]	= 2'b00;
-assign	usb1_tx_margin[0]		= usb1_strapping ? 1'b0 : 1'b1;
+assign	usb1_tx_margin[0]		= usb1_strapping ? 1'b1 : 1'b0;
 assign	usb1_tx_swing			= 1'b0;
 assign	usb1_rx_polarity		= 1'b0;
 assign	usb1_rx_termination	= 1'b0;
@@ -264,9 +264,9 @@ always @(posedge clk_50) begin
 	{ usb1_phy_ready_q3, usb1_phy_ready_q2, usb1_phy_ready_q1 } <= { usb1_phy_ready_q2, usb1_phy_ready_q1, usb1_phy_ready };
 end
 
-assign	usb_strapping = reset_n_q3;
-assign	usb0_strapping = usb0_phy_ready_q3;
-assign	usb1_strapping = usb1_phy_ready_q3;
+assign	usb_strapping = ~reset_n_q3;
+assign	usb0_strapping = ~usb0_phy_ready_q3;
+assign	usb1_strapping = ~usb1_phy_ready_q3;
 
 /* System reset */
 
