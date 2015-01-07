@@ -103,6 +103,8 @@ parameter	[24:0]	T_RECOV_ACTIVE		= 'd750000;		// 12 ms
 parameter	[24:0]	T_RECOV_CONFIG		= 'd375000;		// 6 ms
 parameter	[24:0]	T_RECOV_IDLE		= 'd125000;		// 2 ms
 parameter	[24:0]	T_LOOPBACK_EXIT		= 'd125000;		// 2 ms
+parameter	[24:0]	T_HOTRESET_ACTIVE	= 'd750000;		// 12 ms
+parameter	[24:0]	T_HOTRESET_IDLE		= 'd125000;		// 2 ms
 
 parameter	[24:0]	T_PM_LC				= 'd376;		// 3 us			used in Link Layer, double cycles
 parameter	[24:0]	T_PM_ENTRY			= 'd752;		// 6 us			used in Link Layer, double cycles
