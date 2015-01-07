@@ -654,6 +654,9 @@ always @(posedge local_clk) begin
 				in_header_pkt_d <= 'h0;
 				
 				link_error_count <= 0;
+
+				// TODO: Lots of other error flags need to be reset!
+				err_lgood_order <= 0;
 			end
 			
 			if(ltssm_stored == LT_POLLING_IDLE || ltssm_stored == LT_HOTRESET_EXIT) begin
