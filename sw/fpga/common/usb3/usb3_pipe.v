@@ -240,7 +240,6 @@ always @(posedge local_clk) begin
 
 	local_tx_data <= 32'h0;
 	local_tx_datak <= 4'b0000;
-	local_tx_active <= 1'b0;
 	local_tx_skp_inhibit <= 0;
 	local_tx_skp_defer <= 0;
 	
@@ -277,6 +276,7 @@ always @(posedge local_clk) begin
 		ds_enable <= 0;							// disable descrambling
 		s_enable <= 0;							// disable scrambling
 		scr_mux <= 0;							// switch TX mux to local PIPE layer 
+		local_tx_active <= 1'b0;
 		
 		ts_disable_scrambling_latch <= 0;
 		ltssm_hot_reset <= 0;
@@ -300,9 +300,6 @@ always @(posedge local_clk) begin
 	end
 
 	ST_IDLE: begin
-		// disable scrambling
-		s_enable <= 0;	
-		ds_enable <= 0;
 		// squash idle in P0
 		if(phy_power_down == POWERDOWN_0) phy_tx_elecidle_local <= 1'b0;
 		
@@ -331,15 +328,8 @@ always @(posedge local_clk) begin
 			// Polling.Idle
 			if(ltssm_train_idle) begin
 				swc <= 0;
-				// enable de/scrambling
-				ds_enable <= 1;
-				s_enable <= 1;
-				if(ts_disable_scrambling) ds_enable <= 0;
-				if(ts_disable_scrambling) s_enable <= 0;
 				idle_symbol_send <= 0;
 				idle_symbol_recv <= 0;
-				
-				local_tx_active <= 1;
 				local_tx_data <= 32'h0;
 				local_tx_datak <= 4'b0;
 				state <= ST_TRAIN_IDLE_0;
@@ -348,6 +338,10 @@ always @(posedge local_clk) begin
 	end
 	
 	ST_TRAIN_RXEQ_0: begin
+		// disable scrambling
+		s_enable <= 0;	
+		ds_enable <= 0;
+
 		// transmitting TSEQ
 		// N.B. this is just COM + scrambled 00.
 		phy_tx_elecidle_local <= 1'b0;
@@ -380,6 +374,7 @@ always @(posedge local_clk) begin
 		// allow several cycles for slower FSM in other domain to deassert training signal,
 		// and inhibit repeated training
 		phy_tx_elecidle_local <= 1'b0;
+		local_tx_active <= 1'b0;
 		
 		ltssm_train_rxeq_pass <= 1;
 		if(swc == 7) state <= ST_IDLE;
@@ -388,7 +383,12 @@ always @(posedge local_clk) begin
 	ST_HOT_RESET_ACTIVE: begin
 		ltssm_hot_reset_exit_complete <= 0;
 
+		// disable scrambling
+		s_enable <= 0;	
+		ds_enable <= 0;
+
 		phy_tx_elecidle_local <= 1'b0;
+		local_tx_active <= 1;
 		
 		case(swc)
 		0: {local_tx_data, local_tx_datak} <= {32'hBCBCBCBC, 4'b1111};
@@ -410,7 +410,12 @@ always @(posedge local_clk) begin
 
 	ST_HOT_RESET_EXIT: begin
 		phy_tx_elecidle_local <= 1'b0;
+		local_tx_active <= 1;
 		{local_tx_data, local_tx_datak} <= {32'h00000000, 4'b0000};
+
+		// enable scrambling
+		ds_enable <= 1;
+		s_enable <= 1;
 
 		// Receive at least 1 idle symbol.
 		if(sync_b_active && (sync_out == 32'h00000000)) idle_symbol_recv_one <= 1;
@@ -436,10 +441,13 @@ always @(posedge local_clk) begin
 	end
 
 	ST_TRAIN_ACTIVECONFIG_0: begin
+		// disable scrambling
+		s_enable <= 0;	
+		ds_enable <= 0;
+
 		// transmitting TS1
 		phy_tx_elecidle_local <= 1'b0;
 		local_tx_active <= 1;
-		ds_enable <= 0;
 		
 		if(~set_ts) begin
 			case(swc)
@@ -500,6 +508,12 @@ always @(posedge local_clk) begin
 	end
 
 	ST_TRAIN_IDLE_0: begin
+		// enable de/scrambling
+		ds_enable <= 1;
+		s_enable <= 1;
+		if(ts_disable_scrambling) ds_enable <= 0;
+		if(ts_disable_scrambling) s_enable <= 0;
+
 		phy_tx_elecidle_local <= 1'b0;
 		local_tx_active <= 1;
 		{local_tx_data, local_tx_datak} <= {32'h00000000, 4'b0000};
@@ -535,12 +549,14 @@ always @(posedge local_clk) begin
 	end
 	ST_TRAIN_IDLE_1: begin
 		phy_tx_elecidle_local <= 1'b0;
+		local_tx_active <= 1'b0;
 		ltssm_train_idle_pass <= 1;
 		if(!ltssm_train_idle) state <= ST_U0;
 	end
 	
 	ST_U0: begin
 		phy_tx_elecidle_local <= 1'b0;
+		local_tx_active <= 1'b0;
 		
 		// pass tx mux to link layer
 		scr_mux <= 1;
@@ -556,22 +572,28 @@ always @(posedge local_clk) begin
 		endcase
 	end
 	ST_U1: begin
+		local_tx_active <= 1'b0;
 		case(ltssm_state) 
 		default: state <= ST_IDLE;
 		endcase
 	end
 	ST_U2: begin
+		local_tx_active <= 1'b0;
 		case(ltssm_state) 
 		default: state <= ST_IDLE;
 		endcase
 	end
 	ST_U3: begin
+		local_tx_active <= 1'b0;
 		case(ltssm_state) 
 		default: state <= ST_IDLE;
 		endcase
 	end
 		
-	default: state <= ST_RST_0;
+	default: begin
+		local_tx_active <= 1'b0;
+		state <= ST_RST_0;
+	end
 	endcase
 	
 	
