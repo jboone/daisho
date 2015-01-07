@@ -67,6 +67,7 @@ input	wire			ltssm_train_rxeq,
 output	reg				ltssm_train_rxeq_pass,
 input	wire			ltssm_train_active,
 input	wire			ltssm_train_config,
+input	wire			ltssm_train_config_ts2_hot_reset,
 input	wire			ltssm_train_idle,
 output	reg				ltssm_train_idle_pass,
 output	reg				ltssm_train_ts1,
@@ -177,10 +178,7 @@ parameter	[5:0]	PD_RESET			= 6'd0,
 	
 	reg				ts_disable_scrambling;
 	reg				ts_disable_scrambling_latch;
-	reg				ts_hot_reset_local;
-	reg				ts_hot_reset_1;
 	reg				ts_hot_reset_latch;
-	reg		[4:0]	hot_reset_count;
 	
 	reg		[3:0]	idle_symbol_send;
 	reg		[3:0]	idle_symbol_recv;
@@ -249,17 +247,12 @@ always @(posedge local_clk) begin
 	set_ts1_found <= 0;
 	set_ts2_found <= 0;
 	ts_disable_scrambling <= 0;
-	ts_hot_reset_1 <= ts_hot_reset_local;
-	//ltssm_hot_reset <= ts_hot_reset_local | ts_hot_reset_1;
 	
 	ltssm_train_ts1 <= set_ts1_found_1 | set_ts1_found;
 	ltssm_train_ts2 <= set_ts2_found_1 | set_ts2_found;
 	
 	set_ts1_found_1 <= set_ts1_found;
 	set_ts2_found_1 <= set_ts2_found;
-	
-	// on first detection of TS2 Reset, send at least 16 TS2 with Reset
-	if(ts_hot_reset_local & ~ts_hot_reset_1) hot_reset_count <= 16;
 	
 	///////////////////////////////////////
 	// PIPE FSM
@@ -286,7 +279,6 @@ always @(posedge local_clk) begin
 		scr_mux <= 0;							// switch TX mux to local PIPE layer 
 		
 		ts_disable_scrambling_latch <= 0;
-		hot_reset_count <= 0;
 		ltssm_hot_reset <= 0;
 		ltssm_hot_reset_exit_complete <= 0;
 		
@@ -459,7 +451,7 @@ always @(posedge local_clk) begin
 		end else begin
 			case(swc)
 			0: {local_tx_data, local_tx_datak} <= {32'hBCBCBCBC, 4'b1111};
-			1: {local_tx_data, local_tx_datak} <= {8'h00, {4'h0, 3'h0, hot_reset_count > 0}, 16'h4545, 4'b0000};
+			1: {local_tx_data, local_tx_datak} <= {8'h00, {4'h0, 3'h0, ltssm_train_config_ts2_hot_reset}, 16'h4545, 4'b0000};
 			2: {local_tx_data, local_tx_datak} <= {32'h45454545, 4'b0000};
 			3: {local_tx_data, local_tx_datak} <= {32'h45454545, 4'b0000};
 			endcase
@@ -468,7 +460,6 @@ always @(posedge local_clk) begin
 		if(swc == 3) begin
 			// end of ordered set, repeat
 			swc <= 0;
-			if(hot_reset_count > 0) `DEC(hot_reset_count);
 			// increment symbols sent for SKP compensation
 			train_sym_skp <= train_sym_skp + 13'd16;
 			if(train_sym_skp >= (354*2-16)) begin
@@ -671,7 +662,6 @@ always @(posedge local_clk) begin
 	case(tsdet_state)
 	TSDET_RESET: begin
 		ts_hot_reset_latch <= 0;
-		ts_hot_reset_local <= 0;
 		ltssm_train_ts2_hot_reset <= 0;
 		tsdet_state <= TSDET_IDLE;
 	end
@@ -681,13 +671,8 @@ always @(posedge local_clk) begin
 				{sync_out, sync_outk} == {32'hBCBCBCBC, 4'b1111} ? TSDET_0 : TSDET_IDLE;
 		end
 		ts_disable_scrambling <= ts_disable_scrambling_latch && set_ts2_found;
-		//ts_hot_reset_local <= ts_hot_reset_latch && set_ts2_found;	
 		if(set_ts2_found) begin
 			// update whether or not the Reset bit was set
-			// this is used by the LTSSM to decide whether to proceed to U0 or HotReset
-			ts_hot_reset_local <= ts_hot_reset_latch;	
-			
-			if(ts_hot_reset_latch) ltssm_hot_reset <= 1;
 			// this is used by the LTSSM to decide whether to proceed to U0 or HotReset			
 			ltssm_train_ts2_hot_reset <= ts_hot_reset_latch;
 		end
