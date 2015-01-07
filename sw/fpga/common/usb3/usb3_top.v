@@ -93,8 +93,8 @@ end
 
 	parameter		XTAL_SEL			= 1'b0; 	// crystal input
 	parameter		OSC_SEL				= 1'b1; 	// clock input
-	parameter [2:0]	SSC_DIS				= 2'b11;	// spread spectrum clock disable
-	parameter [2:0]	SSC_EN				= 2'b00;	// spread spectrum clock enable
+	parameter [2:0]	SSC_DIS				= 3'bZZ1;	// spread spectrum clock disable
+	parameter [2:0]	SSC_EN				= 3'bZZ0;	// spread spectrum clock enable
 	parameter		PIPE_16BIT			= 1'b0;		// sdr 16bit pipe interface
 	// strap pins
 	assign			phy_rx_elecidle 	= reset_2 ? 1'bZ : XTAL_SEL;
