@@ -165,6 +165,11 @@ usb3_pipe	iu3p (
 	.ltssm_power_go			( port_power_go ),
 	.ltssm_power_ack		( port_power_ack ),
 	.ltssm_hot_reset		( ltssm_hot_reset ),
+
+	.ltssm_hot_reset_active		( ltssm_hot_reset_active ),
+	.ltssm_hot_reset_exit		( ltssm_hot_reset_exit ),
+	.ltssm_hot_reset_exit_complete	( ltssm_hot_reset_exit_complete ),
+	.ltssm_hot_reset_ts2_reset		( ltssm_hot_reset_ts2_reset ),
 	
 	.ltssm_state				( ltssm_state ),
 	.ltssm_training				( ltssm_training ),
@@ -173,7 +178,9 @@ usb3_pipe	iu3p (
 	.ltssm_train_active			( ltssm_train_active ),
 	.ltssm_train_ts1			( ltssm_train_ts1 ),
 	.ltssm_train_ts2			( ltssm_train_ts2 ),
+	.ltssm_train_ts2_hot_reset	( ltssm_train_ts2_hot_reset ),
 	.ltssm_train_config			( ltssm_train_config ),
+	.ltssm_train_config_ts2_hot_reset	( ltssm_train_config_ts2_hot_reset ),
 	.ltssm_train_idle			( ltssm_train_idle ),
 	.ltssm_train_idle_pass		( ltssm_train_idle_pass ),
 	
@@ -202,6 +209,11 @@ usb3_pipe	iu3p (
 	wire			port_power_ack;
 	wire			port_power_err;
 	wire			ltssm_hot_reset;
+
+	wire			ltssm_hot_reset_active;
+	wire			ltssm_hot_reset_exit;
+	wire			ltssm_hot_reset_exit_complete;
+	wire			ltssm_hot_reset_ts2_reset;
 	
 	wire			ltssm_training;
 	wire			ltssm_train_rxeq;
@@ -209,7 +221,9 @@ usb3_pipe	iu3p (
 	wire			ltssm_train_active;
 	wire			ltssm_train_ts1;
 	wire			ltssm_train_ts2;
+	wire			ltssm_train_ts2_hot_reset;
 	wire			ltssm_train_config;
+	wire			ltssm_train_config_ts2_hot_reset;
 	wire			ltssm_train_idle;
 	wire			ltssm_train_idle_pass;
 
@@ -246,11 +260,16 @@ usb3_ltssm	iu3lt (
 	.train_idle_pass		( ltssm_train_idle_pass ),
 	.train_ts1				( ltssm_train_ts1 ),
 	.train_ts2				( ltssm_train_ts2 ),
+	.train_ts2_hot_reset	( ltssm_train_ts2_hot_reset ),
 	.go_disabled			( ltssm_go_disabled ),
 	.go_recovery			( ltssm_go_recovery ),
 	.go_u					( ltssm_go_u ),
-	.hot_reset				( ltssm_hot_reset ),
-	
+
+	.hot_reset_active		( ltssm_hot_reset_active ),
+	.hot_reset_exit			( ltssm_hot_reset_exit ),
+	.hot_reset_exit_complete	( ltssm_hot_reset_exit_complete ),
+	.hot_reset_ts2_reset		( ltssm_hot_reset_ts2_reset ),
+
 	// outputs
 	.ltssm_state			( ltssm_state ),
 	.port_rx_term			( port_rx_term ),
@@ -264,6 +283,7 @@ usb3_ltssm	iu3lt (
 	.train_rxeq				( ltssm_train_rxeq ),
 	.train_active			( ltssm_train_active ),
 	.train_config			( ltssm_train_config ),
+	.train_config_ts2_hot_reset	( ltssm_train_config_ts2_hot_reset ),
 	.train_idle				( ltssm_train_idle ),
 	
 	.lfps_recv_active		( lfps_recv_active ),
