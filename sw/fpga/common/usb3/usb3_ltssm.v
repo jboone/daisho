@@ -39,10 +39,16 @@ output	reg				train_active,
 input	wire			train_ts1,
 input	wire			train_ts2,
 output	reg				train_config,
+output	reg				train_config_ts2_hot_reset,
 output	reg				train_idle,
 input	wire			train_idle_pass,
+input	wire			train_ts2_hot_reset,
 
-input	wire			hot_reset,
+output	reg				hot_reset_active,
+output	reg				hot_reset_exit,
+input	wire			hot_reset_exit_complete,
+output	reg				hot_reset_ts2_reset,
+
 input	wire			go_disabled,
 input	wire			go_recovery,
 input	wire	[2:0]	go_u,
@@ -101,6 +107,8 @@ output	reg				warm_reset
 	reg				has_trained;
 	reg				go_recovery_latch;
 	
+	reg				hot_reset_active_phase;		// Tracks two phases of HotReset.Active
+
 assign	ltssm_state = state;
 
 always @(posedge slow_clk) begin
@@ -121,7 +129,11 @@ always @(posedge slow_clk) begin
 	train_rxeq <= 0;
 	train_active <= 0;
 	train_config <= 0;
+	train_config_ts2_hot_reset <= 0;
 	train_idle <= 0;
+
+	hot_reset_active <= 0;
+	hot_reset_exit <= 0;
 	
 	lfps_send_ack <= 0;
 	lfps_send_poll_local <= 0;
@@ -308,6 +320,8 @@ always @(posedge slow_clk) begin
 		training <= 1;
 		train_config <= 1;
 	
+		train_config_ts2_hot_reset <= train_ts2_hot_reset;
+
 		// increment TS2 receive count up to 8
 		if(train_ts2) begin
 			if(tc < 8) `INC(tc);			
@@ -332,15 +346,17 @@ always @(posedge slow_clk) begin
 		training <= 1;
 		train_idle <= 1;
 		
+		if(train_ts2_hot_reset) begin
+			dc <= 0;
+			state <= LT_HOTRESET;
+		end
+		else
 		if(train_idle_pass) begin
 			// exit conditions:
 			// 16 IDLE symbol sent after receiving
 			// first of at least 8 symbols.
 			dc <= 0;
-			if(hot_reset) 
-				state <= LT_HOTRESET; 
-			else
-				state <= LT_U0;
+			state <= LT_U0;
 		end
 		
 		// timeout
@@ -485,18 +501,26 @@ always @(posedge slow_clk) begin
 		if(dc == T_RECOV_CONFIG) state <= LT_SS_INACTIVE;
 	end
 	LT_RECOVERY_IDLE: begin
-		training <= 1;
-		train_idle <= 1;
-		
-		if(train_idle_pass) begin
-			// exit conditions:
-			// 16 IDLE symbol sent after receiving
-			// first of at least 8 symbols.
+		if(train_ts2_hot_reset) begin
 			dc <= 0;
-			if(hot_reset) 
-				state <= LT_HOTRESET; 
-			else
+			hot_reset_active <= 1;
+			tc <= 0;
+			tsc <= 0;
+			hot_reset_active_phase <= 0;
+			hot_reset_ts2_reset <= 1;
+			state <= LT_HOTRESET_ACTIVE;
+		end
+		else begin
+			training <= 1;
+			train_idle <= 1;
+			
+			if(train_idle_pass) begin
+				// exit conditions:
+				// 16 IDLE symbol sent after receiving
+				// first of at least 8 symbols.
+				dc <= 0;
 				state <= LT_U0;
+			end
 		end
 		
 		if(dc == T_RECOV_IDLE) state <= LT_SS_INACTIVE;
@@ -511,10 +535,57 @@ always @(posedge slow_clk) begin
 		if(dc == 3)	state <= LT_HOTRESET_ACTIVE;
 	end
 	LT_HOTRESET_ACTIVE: begin
-		state <= LT_HOTRESET_EXIT;
+		hot_reset_active <= 1;
+
+		if(hot_reset_active_phase == 0) begin
+			// Transmit at least 16 TS2s with reset asserted.
+			if(tsc < 16*2) `INC(tsc);
+
+			if(tsc == 16*2) begin
+				// Wait for a TS2 with reset = 1.
+				if(train_ts2 && train_ts2_hot_reset) begin
+					if(tc < 1) `INC(tc);
+				end
+			end
+
+			if(tc == 1) begin
+				// Start transmitting TS2s with reset = 0 once local reset
+				// is complete.
+				hot_reset_ts2_reset <= 0;
+				hot_reset_active_phase <= 1;
+				tc <= 0;
+				tsc <= 0;
+			end
+		end
+		else begin
+			// Wait for a TS2 with reset = 0.
+			if(train_ts2 && !train_ts2_hot_reset) begin
+				if(tc < 1) `INC(tc);
+			end
+
+			// Received at least one TS2 with reset = 0.
+			if(tc == 1) begin
+				// Send at least four TS2 with reset = 0.
+				if(tsc < 4*2) `INC(tsc);
+			end
+
+			if(tsc == 4*2) begin
+				dc <= 0;
+				state <= LT_HOTRESET_EXIT;
+			end
+		end
+
+		if(dc == T_HOTRESET_ACTIVE) state <= LT_SS_INACTIVE;
 	end
 	LT_HOTRESET_EXIT: begin
-		state <= LT_U0;
+		hot_reset_exit <= 1;
+	
+		if(hot_reset_exit_complete) begin
+			dc <= 0;
+			state <= LT_U0;
+		end
+
+		if(dc == T_HOTRESET_IDLE) state <= LT_SS_INACTIVE;
 	end
 	LT_RESET: begin
 		port_rx_term <= 0;
