@@ -89,7 +89,7 @@ end
 													// reset the PHY along with all our core code if cable unplugged
 	assign			phy_out_enable = 1'b1;
 		
-	wire	[1:0]	mux_tx_margin; 
+	wire	[2:0]	mux_tx_margin; 
 
 	parameter		XTAL_SEL			= 1'b0; 	// crystal input
 	parameter		OSC_SEL				= 1'b1; 	// clock input
