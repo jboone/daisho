@@ -659,13 +659,17 @@ always @(posedge local_clk) begin
 				err_lgood_order <= 0;
 			end
 			
-			if(ltssm_stored == LT_POLLING_IDLE || ltssm_stored == LT_HOTRESET_EXIT) begin
+			if(ltssm_stored == LT_POLLING_IDLE) begin
 				// initiate port capabilities
 				queue_send_u0_portcap <= 1;
 				// expect to receive portcap/portcfg
 				recv_port_cmdcfg <= 2'h0;
-			end else begin
-				//recv_port_cmdcfg == 2'b11;
+			end
+
+			if(ltssm_stored == LT_HOTRESET_EXIT) begin
+				// No exchange of portcap/portcfg
+				queue_send_u0_portcap <= 0;
+				recv_port_cmdcfg <= 2'b11;
 			end
 			queue_send_u0_adv <= 1;
 			
