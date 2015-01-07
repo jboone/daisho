@@ -72,6 +72,11 @@ output	reg				ltssm_train_idle_pass,
 output	reg				ltssm_train_ts1,
 output	reg				ltssm_train_ts2,
 
+input	wire			ltssm_hot_reset_active,
+input	wire			ltssm_hot_reset_exit,
+output	reg				ltssm_hot_reset_exit_complete,
+input	wire			ltssm_hot_reset_ts2_reset,
+
 input	wire			lfps_recv_active,
 input	wire			lfps_recv_poll_u1,
 input	wire			lfps_recv_ping,
@@ -119,7 +124,9 @@ parameter	[5:0]	ST_RST_0			= 6'd0,
 					ST_U0				= 6'd45,
 					ST_U1				= 6'd46,
 					ST_U2				= 6'd47,
-					ST_U3				= 6'd48;
+					ST_U3				= 6'd48,
+					ST_HOT_RESET_ACTIVE	= 6'd50,
+					ST_HOT_RESET_EXIT	= 6'd51;
 					
 	reg		[5:0]	align_state;
 parameter	[5:0]	ALIGN_RESET			= 6'd0,
@@ -176,6 +183,7 @@ parameter	[5:0]	PD_RESET			= 6'd0,
 	
 	reg		[3:0]	idle_symbol_send;
 	reg		[3:0]	idle_symbol_recv;
+	reg				idle_symbol_recv_one;
 	
 	reg				set_ts1_found, set_ts1_found_1;
 	reg				set_ts2_found, set_ts2_found_1;
@@ -279,6 +287,7 @@ always @(posedge local_clk) begin
 		ts_disable_scrambling_latch <= 0;
 		hot_reset_count <= 0;
 		ltssm_hot_reset <= 0;
+		ltssm_hot_reset_exit_complete <= 0;
 		
 		state <= ST_RST_1;
 		dc <= 0;
@@ -383,6 +392,56 @@ always @(posedge local_clk) begin
 		if(swc == 7) state <= ST_IDLE;
 	end
 	
+	ST_HOT_RESET_ACTIVE: begin
+		ltssm_hot_reset_exit_complete <= 0;
+
+		phy_tx_elecidle_local <= 1'b0;
+		
+		case(swc)
+		0: {local_tx_data, local_tx_datak} <= {32'hBCBCBCBC, 4'b1111};
+		1: {local_tx_data, local_tx_datak} <= {8'h00, {4'h0, 3'h0, ltssm_hot_reset_ts2_reset}, 16'h4545, 4'b0000};
+		2: {local_tx_data, local_tx_datak} <= {32'h45454545, 4'b0000};
+		3: {local_tx_data, local_tx_datak} <= {32'h45454545, 4'b0000};
+		endcase
+
+		if(swc == 3) begin
+			swc <= 0;
+			if(ltssm_hot_reset_exit) begin
+				idle_symbol_send <= 0;
+				idle_symbol_recv <= 0;
+				idle_symbol_recv_one <= 0;
+				state <= ST_HOT_RESET_EXIT;
+			end
+		end
+	end
+
+	ST_HOT_RESET_EXIT: begin
+		phy_tx_elecidle_local <= 1'b0;
+		{local_tx_data, local_tx_datak} <= {32'h00000000, 4'b0000};
+
+		// Receive at least 1 idle symbol.
+		if(sync_b_active && (sync_out == 32'h00000000)) idle_symbol_recv_one <= 1;
+
+		// Receive at least 8 idle symbols.
+		// NOTE: Counting 2 symbols in each `INC.
+		if(idle_symbol_recv < 4)
+			if(sync_b_active && (sync_out == 32'h00000000))
+				`INC(idle_symbol_recv);
+			else
+				idle_symbol_recv <= 0;
+
+		// Transmit at least 16 idle symbols after receiving at least one.
+		// NOTE: Counting 2 symbols in each `INC.
+		if(idle_symbol_recv_one) begin
+			if(idle_symbol_send < 8) `INC(idle_symbol_send);
+		end
+		
+		if((idle_symbol_recv == 4) && (idle_symbol_send == 8)) begin
+			ltssm_hot_reset_exit_complete <= 1;
+			state <= ST_U0;
+		end
+	end
+
 	ST_TRAIN_ACTIVECONFIG_0: begin
 		// transmitting TS1
 		phy_tx_elecidle_local <= 1'b0;
@@ -418,10 +477,19 @@ always @(posedge local_clk) begin
 			// change sending set from TS1 to TS2
 			set_ts <= ltssm_train_config;
 			
-			if(!(ltssm_train_active || ltssm_train_config)) begin
-				// LTSSM has aborted or timed out
-				state <= ST_IDLE;
-			end
+			if(ltssm_hot_reset_active)
+				state <= ST_HOT_RESET_ACTIVE;
+			else
+				if(ltssm_train_idle) begin
+					idle_symbol_send <= 0;
+					idle_symbol_recv <= 0;
+					state <= ST_TRAIN_IDLE_0;
+				end
+				else
+					if(!(ltssm_train_active || ltssm_train_config)) begin
+						// LTSSM has aborted or timed out
+						state <= ST_IDLE;
+					end
 		end
 	end
 	ST_TRAIN_ACTIVECONFIG_1: begin
