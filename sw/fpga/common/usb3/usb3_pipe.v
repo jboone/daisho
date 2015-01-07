@@ -330,8 +330,6 @@ always @(posedge local_clk) begin
 				swc <= 0;
 				idle_symbol_send <= 0;
 				idle_symbol_recv <= 0;
-				local_tx_data <= 32'h0;
-				local_tx_datak <= 4'b0;
 				state <= ST_TRAIN_IDLE_0;
 			end
 		end
