@@ -71,6 +71,7 @@ input	wire			ltssm_train_idle,
 output	reg				ltssm_train_idle_pass,
 output	reg				ltssm_train_ts1,
 output	reg				ltssm_train_ts2,
+output	reg				ltssm_train_ts2_hot_reset,
 
 input	wire			ltssm_hot_reset_active,
 input	wire			ltssm_hot_reset_exit,
@@ -671,6 +672,7 @@ always @(posedge local_clk) begin
 	TSDET_RESET: begin
 		ts_hot_reset_latch <= 0;
 		ts_hot_reset_local <= 0;
+		ltssm_train_ts2_hot_reset <= 0;
 		tsdet_state <= TSDET_IDLE;
 	end
 	TSDET_IDLE: begin
@@ -686,6 +688,8 @@ always @(posedge local_clk) begin
 			ts_hot_reset_local <= ts_hot_reset_latch;	
 			
 			if(ts_hot_reset_latch) ltssm_hot_reset <= 1;
+			// this is used by the LTSSM to decide whether to proceed to U0 or HotReset			
+			ltssm_train_ts2_hot_reset <= ts_hot_reset_latch;
 		end
 	end
 	TSDET_0: begin
